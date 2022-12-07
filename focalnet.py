@@ -350,7 +350,6 @@ class FocalNet(tf.keras.Model):
 
         self.num_layers = len(depths)
         embed_dim = [embed_dim * (2 ** i) for i in range(self.num_layers)]
-        print(embed_dim)
         self.num_classes = num_classes
         self.embed_dim = embed_dim
         self.patch_norm = patch_norm
@@ -399,7 +398,6 @@ class FocalNet(tf.keras.Model):
                                normalize_modulator=normalize_modulator
                     )
             self.layers_custom.append(layer)
-        print(len(self.layers_custom))
         self.norm = norm_layer()
         self.avgpool = tfa.layers.AdaptiveAveragePooling1D(1)
         self.head = keras.layers.Dense(num_classes) if num_classes > 0 else None
