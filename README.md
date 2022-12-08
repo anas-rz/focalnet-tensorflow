@@ -1,4 +1,4 @@
-# A TensorFlow translation of FocalNet
+# A TensorFlow translation of FocalNet (WIP)
 
 Released by Microsoft in 2022, FocalNet or Focal Modulation Network is an attention-free architecture achieving superior performance than SoTA self-attention (SA) methods across various vision benchmarks.  [GitHub](https://github.com/microsoft/FocalNet/) [Paper](https://arxiv.org/abs/2203.11926).
 
