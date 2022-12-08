@@ -149,19 +149,19 @@ class FocalNetBlock(keras.layers.Layer):
         
         
 
-    def call(self, x):
+    def call(self, x, H, W):
         B, L, C = x.shape
         shortcut = x
         x = x if self.use_postln else self.norm1(x)
-        x = tf.reshape(x, (B, self.H, self.W, C))
+        x = tf.reshape(x, (B, H, W, C))
         x = self.modulation(x)
-        x = tf.reshape(x, (B, self.H * self.W, C))
+        x = tf.reshape(x, (B, H * W, C))
         x = x if not self.use_postln else self.norm1(x)
         x = shortcut + self.drop_path(self.gamma_1 * x)
-        x = tf.reshape(x, (B, self.H, self.W, C))
+        x = tf.reshape(x, (B, H, W, C))
  
         x = x + self.drop_path(self.gamma_2 * (self.norm2(self.mlp(x)) if self.use_postln else self.mlp(self.norm2(x))))
-        x = tf.reshape(x, (B, self.H * self.W, C))
+        x = tf.reshape(x, (B, H * W, C))
         return x
 
 
@@ -244,9 +244,9 @@ class BasicLayer(tf.keras.Model):
     def call(self, x, H, W):
         # print(x.shape)
         for blk in self.blocks:
-            blk.H, blk.W = H, W
-            x = blk(x)
-
+            print(H)
+            print(W)
+            x = blk(x, H, W)
         if self.downsample is not None:
             x = tf.transpose(x, (0, 1, 2))
             x = tf.reshape(x, (x.shape[0], H, W, -1))
@@ -293,9 +293,9 @@ class PatchEmbed(keras.layers.Layer):
             self.norm = None
 
     def call(self, x):
-        B, H, W, C = x.shape
         x = self.proj(x)        
-        B, H, W, C = tf.shape(x)
+        proj_shape = tf.shape(x)
+        B, H, W, C = proj_shape[0], proj_shape[1], proj_shape[2], proj_shape[3]
         x = tf.reshape(x, (B, H * W, C))
         if self.norm is not None:
             x = self.norm(x)
@@ -417,6 +417,11 @@ class FocalNet(tf.keras.Model):
         x = self.forward_features(x)
         x = self.head(x)
         return x
+
+
+def focalnet_xs_srf(**kwargs):
+    model = FocalNet(depths=[2, 2,], embed_dim=48, **kwargs)
+    return model
 
 def focalnet_tiny_srf(**kwargs):
     model = FocalNet(depths=[2, 2, 6, 2], embed_dim=96, **kwargs)
