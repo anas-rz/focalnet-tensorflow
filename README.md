@@ -1,1 +1,1 @@
-# A TensorFlow implementation of FocalNet.
+# A TensorFlow implementation of FocalNet
