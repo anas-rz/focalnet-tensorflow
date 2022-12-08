@@ -150,7 +150,8 @@ class FocalNetBlock(keras.layers.Layer):
         
 
     def call(self, x, H, W):
-        B, L, C = x.shape
+        ip_shape = tf.shape(x)
+        B, L, C = ip_shape[0], ip_shape[1], ip_shape[2]
         shortcut = x
         x = x if self.use_postln else self.norm1(x)
         x = tf.reshape(x, (B, H, W, C))
@@ -244,12 +245,11 @@ class BasicLayer(tf.keras.Model):
     def call(self, x, H, W):
         # print(x.shape)
         for blk in self.blocks:
-            print(H)
-            print(W)
             x = blk(x, H, W)
         if self.downsample is not None:
             x = tf.transpose(x, (0, 1, 2))
-            x = tf.reshape(x, (x.shape[0], H, W, -1))
+            B = tf.shape(x)[0]
+            x = tf.reshape(x, (B, H, W, -1))
             x, Ho, Wo = self.downsample(x)
         else:
             Ho, Wo = H, W        
