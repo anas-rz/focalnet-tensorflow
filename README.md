@@ -14,6 +14,7 @@ pip install focalnet-tensorflow
 from focalnet_tensorflow import *
 model = focalnet_huge_fl3()
 ```
+See usage [here](./test_notebook.ipynb)
 
 # Available Functions:
 
