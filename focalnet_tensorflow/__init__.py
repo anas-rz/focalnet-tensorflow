@@ -1,1 +1,1 @@
-from .focalnet import *
+from .create_focalnet_model import *
