@@ -3,13 +3,7 @@ import tensorflow.keras.backend as K
 from .layers import *
 
 def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu, out_features=None):
-    """Implementation of classification head of RegNet.
-    Args:
-      num_classes: number of classes for Dense layer
-      name: name prefix
-    Returns:
-      Classification head function.
-    """
+   
 
     def _apply(x):
         in_features = K.int_shape(x)[-1]
