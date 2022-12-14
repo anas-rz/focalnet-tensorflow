@@ -3,7 +3,7 @@ from .focalnet import FocalNet
 
 def Model(img_size=224, **kw) -> keras.Model:
 
-    focalnet_model = FocalNet(img_size=224,**kw)
+    focalnet_model = FocalNet(img_size=img_size,**kw)
 
     inputs = keras.Input((img_size, img_size, 3))
     outputs = focalnet_model(inputs)
