@@ -22,12 +22,12 @@ def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu,
 
     return _apply
 
-def PatchEmbed(img_size=(224, 224), patch_size=4, embed_dim=96, use_conv_embed=False, norm_layer=None, is_stem=False, name=None):
+def PatchEmbed(img_size=(224, 224), patch_size=4, embed_dim=96, use_conv_embed=False, norm_layer=None, is_stem=False, prefix=None):
     
-    if name is None:
+    if prefix is None:
         name = "patch_embed" #+ #str(int(K.get_uid("patch_embed.")) - 1)
     else:
-        name = name + '.' + str(int(K.get_uid(name) - 1))
+        name = prefix + '.downsample'
     def _apply(x, H, W):
         nonlocal patch_size
         patch_size = (patch_size, patch_size)
@@ -38,7 +38,7 @@ def PatchEmbed(img_size=(224, 224), patch_size=4, embed_dim=96, use_conv_embed=F
                 kernel_size = 3; padding = 1; stride = 2
             
             x = keras.layers.ZeroPadding2D(padding=padding)(x)
-            x = keras.layers.Conv2D(embed_dim, kernel_size=kernel_size, strides=stride, padding=padding, name=f"{name}.proj")(x)
+            x = keras.layers.Conv2D(embed_dim, kernel_size=kernel_size, strides=stride, name=f"{name}.proj")(x)
         else:
             x = keras.layers.Conv2D(embed_dim, kernel_size=patch_size, strides=patch_size, name=f"{name}.proj")(x)
         Ho, Wo, Co = K.int_shape(x)[1], K.int_shape(x)[2], K.int_shape(x)[3]
@@ -130,7 +130,7 @@ def BasicLayer(dim, depth, out_dim, input_resolution,
                 use_conv_embed=use_conv_embed, 
                 norm_layer=norm_layer, 
                 is_stem=False,
-                name='downsample')(x, H, W)
+                prefix=name)(x, H, W)
             H, W = Ho, Wo
             
         return x, H, W

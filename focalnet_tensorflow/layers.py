@@ -11,17 +11,21 @@ class FocalModulation(keras.layers.Layer):
             name = prefix #+ str(int(K.get_uid(prefix)) - 1)
         else:
             name = "focal_modulation"
-
+        
         super(FocalModulation, self).__init__(name=name)
         self.focal_level = focal_level
         self.use_postln_in_modulation = use_postln_in_modulation
         self.normalize_modulator = normalize_modulator
+        
         self.f = keras.layers.Dense(2*dim + (focal_level+1), use_bias=bias, name=f'{name}.f')
+        
         self.h = keras.layers.Conv2D(dim, kernel_size=1, strides=1, use_bias=bias, name=f'{name}.h')
-
+        
         self.act = keras.activations.gelu
         self.proj = keras.layers.Dense(dim, name=f'{name}.proj')
         self.proj_drop = keras.layers.Dropout(proj_drop)
+        self.map = {f"{name}.f": self.f, f'{name}.h': self.h, f'{name}.proj': self.proj}
+
         self.focal_layers = []
                 
         self.kernel_sizes = []
@@ -30,12 +34,16 @@ class FocalModulation(keras.layers.Layer):
             _name = _name + str(K.get_uid(_name) - 1)
             # print(name)
             kernel_size = focal_factor*k + focal_window
-            self.focal_layers.append(
-                keras.layers.Conv2D(dim, kernel_size=kernel_size, strides=1, groups=dim, use_bias=False, padding="Same", activation=keras.activations.gelu, name=_name))            
+            _layer = keras.layers.Conv2D(dim, kernel_size=kernel_size, strides=1, groups=dim, use_bias=False, 
+            padding="Same", activation=self.act, name=_name)
+            self.map[_name] = _layer
+            self.focal_layers.append(_layer)            
             self.kernel_sizes.append(kernel_size)          
         if self.use_postln_in_modulation:
-            self.ln = keras.layers.LayerNormalization(name=f'{prefix}.ln')
-
+            self.ln = keras.layers.LayerNormalization(name=f'{prefix}.norm')
+            self.map['norm'] = self.ln
+        # print(len(self.map.keys()))
+    
     def call(self, x):
         """
         Args:
@@ -62,7 +70,8 @@ class FocalModulation(keras.layers.Layer):
         x_out = self.proj_drop(x_out)
         return x_out
 
-    # def get_names_list(self):
+    def _get_layer(self, name):
+        return self.map[name]
 
         
 class LayerScale(keras.layers.Layer):
