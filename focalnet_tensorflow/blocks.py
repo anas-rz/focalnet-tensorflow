@@ -2,17 +2,21 @@ from tensorflow import keras
 import tensorflow.keras.backend as K
 from .layers import *
 
-def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu, out_features=None, name=None):
-   
+def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu, out_features=None, prefix=None):
+    if prefix is not None:
+            prefix = prefix + ".mlp"
+            name = prefix  #+ str(int(K.get_uid(prefix)) - 1)
+    else:
+            name = "mlp_block"
 
     def _apply(x):
         in_features = K.int_shape(x)[-1]
         nonlocal hidden_features, out_features
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        x = keras.layers.Dense(hidden_features, activation=act_layer)(x)
+        x = keras.layers.Dense(hidden_features, activation=act_layer, name=f"{name}.fc1")(x)
         x = keras.layers.Dropout(dropout_rate)(x)
-        x = keras.layers.Dense(out_features, activation=act_layer)(x)
+        x = keras.layers.Dense(out_features, activation=act_layer, name=f"{name}.fc2")(x)
         x = keras.layers.Dropout(dropout_rate)(x)
         return x
 
@@ -69,7 +73,7 @@ def FocalNetBlock(dim, mlp_ratio=4., drop=0., drop_path=0.,
         x = StochasticDepth(drop_path)(x)
         x = keras.layers.Add()([shortcut, x])
         x = keras.layers.Reshape((H, W, C))(x)
-        x = Mlp(hidden_features=dim * mlp_ratio, dropout_rate=drop)(x)
+        x = Mlp(hidden_features=dim * mlp_ratio, dropout_rate=drop, prefix=name)(x)
         x = norm_layer(name=f"{name}.norm2")(x)
         if use_postln:
             x_alt = LayerScale(layerscale_value, dim)(x)
