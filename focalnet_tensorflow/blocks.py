@@ -25,7 +25,7 @@ def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu,
 def PatchEmbed(img_size=(224, 224), patch_size=4, embed_dim=96, use_conv_embed=False, norm_layer=None, is_stem=False, name=None):
     
     if name is None:
-        name = "patch_embed." + str(int(K.get_uid("patch_embed.")) - 1)
+        name = "patch_embed" #+ #str(int(K.get_uid("patch_embed.")) - 1)
     else:
         name = name + '.' + str(int(K.get_uid(name) - 1))
     def _apply(x, H, W):
