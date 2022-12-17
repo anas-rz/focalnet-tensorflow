@@ -62,11 +62,11 @@ def FocalNet(img_size=224,
                                use_postln_in_modulation=use_postln_in_modulation, 
                                normalize_modulator=normalize_modulator
                     )(x, H, W)
-        x = norm_layer()(x)  # B L C
+        x = norm_layer(name='norm')(x)  # B L C
         x = tfa.layers.AdaptiveAveragePooling1D(1)(x)
         x = keras.layers.Flatten()(x)
         num_classes = num_classes if num_classes > 0 else None
-        x = keras.layers.Dense(num_classes)(x)
+        x = keras.layers.Dense(num_classes, name='head')(x)
         return x
 
     return _apply

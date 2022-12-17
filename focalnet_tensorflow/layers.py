@@ -4,27 +4,35 @@ import tensorflow.keras.backend as K
 
 
 class FocalModulation(keras.layers.Layer):
-    def __init__(self, dim, focal_window, focal_level, focal_factor=2, bias=True, proj_drop=0., use_postln_in_modulation=True, normalize_modulator=False):
+    def __init__(self, dim, focal_window, focal_level, focal_factor=2, bias=True, proj_drop=0., use_postln_in_modulation=True, normalize_modulator=False, prefix=None):
         super(FocalModulation, self).__init__()
+        if prefix is not None:
+            prefix = prefix + ".modulation"
+            name = prefix + str(int(K.get_uid(prefix)) - 1)
+        else:
+            name = "focal_modulation"
         self.focal_level = focal_level
         self.use_postln_in_modulation = use_postln_in_modulation
         self.normalize_modulator = normalize_modulator
-        self.f = keras.layers.Dense(2*dim + (focal_level+1), use_bias=bias)
-        self.h = keras.layers.Conv2D(dim, kernel_size=1, strides=1, use_bias=bias)
+        self.f = keras.layers.Dense(2*dim + (focal_level+1), use_bias=bias, name=f'{name}.f')
+        self.h = keras.layers.Conv2D(dim, kernel_size=1, strides=1, use_bias=bias, name=f'{name}.h')
 
         self.act = keras.activations.gelu
-        self.proj = keras.layers.Dense(dim)
+        self.proj = keras.layers.Dense(dim, name=f'{name}.proj')
         self.proj_drop = keras.layers.Dropout(proj_drop)
         self.focal_layers = []
                 
         self.kernel_sizes = []
         for k in range(self.focal_level):
+            _name = f'{prefix}.focal_layers.'
+            _name = _name + str(K.get_uid(_name) - 1)
+            print(name)
             kernel_size = focal_factor*k + focal_window
             self.focal_layers.append(
-                keras.layers.Conv2D(dim, kernel_size=kernel_size, strides=1, groups=dim, use_bias=False, padding="Same", activation=keras.activations.gelu))            
+                keras.layers.Conv2D(dim, kernel_size=kernel_size, strides=1, groups=dim, use_bias=False, padding="Same", activation=keras.activations.gelu, name=_name))            
             self.kernel_sizes.append(kernel_size)          
         if self.use_postln_in_modulation:
-            self.ln = keras.layers.LayerNormalization()
+            self.ln = keras.layers.LayerNormalization(name=f'{prefix}.ln')
 
     def call(self, x):
         """
@@ -51,6 +59,8 @@ class FocalModulation(keras.layers.Layer):
         x_out = self.proj(x_out)
         x_out = self.proj_drop(x_out)
         return x_out
+
+    def get_names_list(self):
 
         
 class LayerScale(keras.layers.Layer):

@@ -2,7 +2,7 @@ from tensorflow import keras
 import tensorflow.keras.backend as K
 from .layers import *
 
-def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu, out_features=None):
+def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu, out_features=None, name=None):
    
 
     def _apply(x):
@@ -18,9 +18,12 @@ def Mlp(hidden_features=None, dropout_rate=0., act_layer=keras.activations.gelu,
 
     return _apply
 
-def PatchEmbed(img_size=(224, 224), patch_size=4, embed_dim=96, use_conv_embed=False, norm_layer=None, is_stem=False):
+def PatchEmbed(img_size=(224, 224), patch_size=4, embed_dim=96, use_conv_embed=False, norm_layer=None, is_stem=False, name=None):
     
-
+    if name is None:
+        name = "patch_embed." + str(int(K.get_uid("patch_embed.")) - 1)
+    else:
+        name = name + '.' + str(int(K.get_uid(name) - 1))
     def _apply(x, H, W):
         nonlocal patch_size
         patch_size = (patch_size, patch_size)
@@ -31,13 +34,13 @@ def PatchEmbed(img_size=(224, 224), patch_size=4, embed_dim=96, use_conv_embed=F
                 kernel_size = 3; padding = 1; stride = 2
             
             x = keras.layers.ZeroPadding2D(padding=padding)(x)
-            x = keras.layers.Conv2D(embed_dim, kernel_size=kernel_size, strides=stride, padding=padding)(x)
+            x = keras.layers.Conv2D(embed_dim, kernel_size=kernel_size, strides=stride, padding=padding, name=f"{name}.proj")(x)
         else:
-            x = keras.layers.Conv2D(embed_dim, kernel_size=patch_size, strides=patch_size)(x)
+            x = keras.layers.Conv2D(embed_dim, kernel_size=patch_size, strides=patch_size, name=f"{name}.proj")(x)
         Ho, Wo, Co = K.int_shape(x)[1], K.int_shape(x)[2], K.int_shape(x)[3]
         x = keras.layers.Reshape((-1, Co))(x)
         if norm_layer is not None:
-            x = norm_layer()(x)
+            x = norm_layer(name=f"{name}.norm")(x)
         return x, Ho, Wo
     return _apply
 
@@ -46,24 +49,28 @@ def FocalNetBlock(dim, mlp_ratio=4., drop=0., drop_path=0.,
                     focal_level=1, focal_window=3,
                     use_layerscale=False, layerscale_value=1e-4, 
                     use_postln=False, use_postln_in_modulation=False, 
-                    normalize_modulator=False, **kwargs):
+                    normalize_modulator=False, prefix=None, **kwargs):
 
+    if prefix is not None:
+        name = prefix + '.blocks.' + str(K.get_uid(f"{prefix}.blocks." )- 1)
+    else:
+        name = 'focalnet_block'
     def _apply(x, H, W):
         
         C = K.int_shape(x)[-1]
         shortcut = x
-        x = x if use_postln else norm_layer()(x)
+        x = x if use_postln else norm_layer(name=f"{name}.norm1")(x)
         x = keras.layers.Reshape((H, W, C))(x)
         x = FocalModulation(dim, proj_drop=drop, focal_window=focal_window, focal_level=focal_level, 
-            use_postln_in_modulation=use_postln_in_modulation, normalize_modulator=normalize_modulator)(x)
+            use_postln_in_modulation=use_postln_in_modulation, normalize_modulator=normalize_modulator, prefix=name)(x)
         x = keras.layers.Reshape((H * W, C))(x)
-        x = x if not use_postln else norm_layer()(x)
+        x = x if not use_postln else norm_layer(name=f"{name}.postln")(x)
         x = LayerScale(1e-6, dim)(x)
         x = StochasticDepth(drop_path)(x)
         x = keras.layers.Add()([shortcut, x])
         x = keras.layers.Reshape((H, W, C))(x)
         x = Mlp(hidden_features=dim * mlp_ratio, dropout_rate=drop)(x)
-        x = norm_layer()(x)
+        x = norm_layer(name=f"{name}.norm2")(x)
         if use_postln:
             x_alt = LayerScale(layerscale_value, dim)(x)
             x_alt = StochasticDepth(drop_path)(x_alt)
@@ -80,7 +87,9 @@ def BasicLayer(dim, depth, out_dim, input_resolution,
                  use_layerscale=False, layerscale_value=1e-4, 
                  use_postln=False, 
                  use_postln_in_modulation=False, 
-                 normalize_modulator=False):
+                 normalize_modulator=False, name=None):
+    if name is None:
+        name = "layers." + str(K.get_uid("layers.") - 1)
     def _apply(x, H, W):
         for i in range(depth):
             x = FocalNetBlock(
@@ -96,7 +105,7 @@ def BasicLayer(dim, depth, out_dim, input_resolution,
                     use_postln=use_postln, 
                     use_postln_in_modulation=use_postln_in_modulation, 
                     normalize_modulator=normalize_modulator, 
-                )(x, H, W)
+                prefix=name)(x, H, W)
             # print(x.shape)
         if downsample is not None:
             C = K.int_shape(x)[-1]
@@ -107,7 +116,8 @@ def BasicLayer(dim, depth, out_dim, input_resolution,
                 embed_dim=out_dim, 
                 use_conv_embed=use_conv_embed, 
                 norm_layer=norm_layer, 
-                is_stem=False)(x, H, W)
+                is_stem=False,
+                name='downsample')(x, H, W)
             H, W = Ho, Wo
             
         return x, H, W
