@@ -63,22 +63,31 @@ def FocalNetBlock(dim, mlp_ratio=4., drop=0., drop_path=0.,
         
         C = K.int_shape(x)[-1]
         shortcut = x
-        x = x if use_postln else norm_layer(name=f"{name}.norm1")(x)
+        if not use_postln:
+            x = norm_layer(name=f"{name}.norm1")(x)
         x = keras.layers.Reshape((H, W, C))(x)
         x = FocalModulation(dim, proj_drop=drop, focal_window=focal_window, focal_level=focal_level, 
             use_postln_in_modulation=use_postln_in_modulation, normalize_modulator=normalize_modulator, prefix=name)(x)
         x = keras.layers.Reshape((H * W, C))(x)
-        x = x if not use_postln else norm_layer(name=f"{name}.postln")(x)
-        x = LayerScale(1e-6, dim)(x)
+        if use_postln:
+            x = norm_layer(name=f"{name}.norm1")(x)
+        if use_layerscale:
+            x = LayerScale(layerscale_value, dim)(x)
         x = StochasticDepth(drop_path)(x)
         x = keras.layers.Add()([shortcut, x])
         x = keras.layers.Reshape((H, W, C))(x)
-        x = Mlp(hidden_features=dim * mlp_ratio, dropout_rate=drop, prefix=name)(x)
-        x = norm_layer(name=f"{name}.norm2")(x)
         if use_postln:
-            x_alt = LayerScale(layerscale_value, dim)(x)
+            x_alt = Mlp(hidden_features=dim * mlp_ratio, dropout_rate=drop, prefix=name)(x)
+            x_alt = norm_layer(name=f"{name}.norm2")(x_alt)
+            if use_layerscale:
+                x_alt = LayerScale(layerscale_value, dim)(x_alt)
             x_alt = StochasticDepth(drop_path)(x_alt)
-            x = keras.layers.Add()([x, x_alt])
+            x = keras.layers.Add()([x_alt, x])
+        else:
+            x_alt = norm_layer(name=f"{name}.norm2")(x)
+            x_alt = Mlp(hidden_features=dim * mlp_ratio, dropout_rate=drop, prefix=name)(x_alt)
+            x_alt = StochasticDepth(drop_path)(x_alt)
+            x = keras.layers.Add()([x_alt, x])
         x = keras.layers.Reshape((H * W, C))(x)
         return x
     return _apply
