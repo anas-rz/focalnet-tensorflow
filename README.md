@@ -16,6 +16,11 @@ model = focalnet_huge_fl3()
 ```
 See usage [here](./test_notebook_focalnet_tensorflow.ipynb)
 
+# Todo:
+
+- [ ] Test ported weights
+- [ ] Create a PR at original repo
+
 # Available Functions:
 
 
